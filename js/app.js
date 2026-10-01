@@ -1,0 +1,20 @@
+const CFG={
+CLIENT_ID:"932229940647-k458acfbnhss4ma602g6joqtpk2mcd0g.apps.googleusercontent.com",
+FOLDER_ID:"1-4m5Ntb3ST0Y2krzWjOW0qWubq0azhOk",
+SCOPE:"https://www.googleapis.com/auth/drive.file"
+};
+let token=null,client=null,files=[];
+const $=id=>document.getElementById(id);
+function init(){if(!window.google?.accounts?.oauth2)return setTimeout(init,250);client=google.accounts.oauth2.initTokenClient({client_id:CFG.CLIENT_ID,scope:CFG.SCOPE,callback:r=>{if(r.error)return msg(r.error_description||r.error,true);token=r.access_token;$("signin").classList.add("hidden");$("signout").classList.remove("hidden");$("notice").classList.add("hidden");$("app").classList.remove("hidden");load()}})}
+function msg(s,e=false){$("status").textContent=s||"";$("status").style.color=e?"#ff9fa8":""}
+$("signin").onclick=()=>client?.requestAccessToken({prompt:"consent"});
+$("signout").onclick=()=>{if(token)google.accounts.oauth2.revoke(token,()=>{});token=null;location.reload()};
+$("refresh").onclick=load;$("search").oninput=render;
+$("files").onchange=async e=>{for(const f of e.target.files)await upload(f);e.target.value="";await load()};
+async function req(url,opt={}){opt.headers={...(opt.headers||{}),Authorization:"Bearer "+token};let r=await fetch(url,opt);if(!r.ok)throw Error(await r.text());return r}
+async function load(){try{msg("Loading…");let q=encodeURIComponent(`'${CFG.FOLDER_ID}' in parents and trashed=false`),u=`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,mimeType,size,modifiedTime,webViewLink)&orderBy=modifiedTime%20desc&pageSize=1000`;files=(await(await req(u)).json()).files||[];render();msg(`${files.length} file${files.length==1?"":"s"}`)}catch(e){msg("Could not load files. "+e.message,true)}}
+function render(){let term=$("search").value.toLowerCase(),g=$("grid");g.innerHTML="";for(const f of files.filter(x=>x.name.toLowerCase().includes(term))){let d=document.createElement("div");d.className="card";d.innerHTML=`<div>📄</div><div class="info"><div class="name"></div><div class="meta">${f.mimeType||"File"} • ${fmt(+f.size||0)}</div></div><div class="actions"><button class="open">Open</button><button class="danger del">Delete</button></div>`;d.querySelector(".name").textContent=f.name;d.querySelector(".open").onclick=()=>window.open(f.webViewLink||`https://drive.google.com/open?id=${f.id}`,"_blank");d.querySelector(".del").onclick=()=>del(f);g.appendChild(d)}}
+async function del(f){if(!confirm(`Delete "${f.name}"?`))return;try{await req(`https://www.googleapis.com/drive/v3/files/${f.id}`,{method:"DELETE"});await load()}catch(e){msg("Delete failed. "+e.message,true)}}
+async function upload(f){let row=document.createElement("div");row.innerHTML=`<b></b><span> 0%</span><div class="progress"><div class="bar"></div></div>`;$("uploads").appendChild(row);row.querySelector("b").textContent=f.name;try{let r=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable",{method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json","X-Upload-Content-Type":f.type||"application/octet-stream","X-Upload-Content-Length":String(f.size)},body:JSON.stringify({name:f.name,mimeType:f.type||"application/octet-stream",parents:[CFG.FOLDER_ID]})});if(!r.ok)throw Error(await r.text());let loc=r.headers.get("Location");if(!loc)throw Error("No upload session returned");await new Promise((ok,no)=>{let x=new XMLHttpRequest();x.open("PUT",loc);x.setRequestHeader("Content-Type",f.type||"application/octet-stream");x.upload.onprogress=e=>{if(e.lengthComputable){let p=Math.round(e.loaded/e.total);row.querySelector("span").textContent=" "+p+"%";row.querySelector(".bar").style.width=p+"%"}};x.onload=()=>x.status>=200&&x.status<300?ok():no(Error(x.responseText||"Upload failed"));x.onerror=()=>no(Error("Network error"));x.send(f)});row.remove();msg("Uploaded "+f.name)}catch(e){row.querySelector("span").textContent=" Failed";msg("Upload failed: "+e.message,true)}}
+function fmt(n){if(!n)return"0 B";let u=["B","KB","MB","GB","TB"],i=Math.floor(Math.log(n)/Math.log(1024));return(n/1024**i).toFixed(i?1:0)+" "+u[i]}
+addEventListener("load",init);

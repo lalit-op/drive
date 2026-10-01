@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Drive</title>
+<link rel="stylesheet" href="./css/style.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<header><b>📁 My Drive</b><div><button id="signin">Sign in with Google</button><button id="signout" class="hidden">Sign out</button></div></header>
+<main>
+<section class="hero">
+<div><small>PRIVATE DRIVE</small><h1>Your files, in one place.</h1><p>Upload files directly to your Google Drive folder.</p></div>
+<label class="upload"><input id="files" type="file" multiple hidden>＋ Upload files</label>
+</section>
+<div id="notice" class="notice">Sign in with Google to continue.</div>
+<section id="app" class="hidden">
+<div class="toolbar"><input id="search" placeholder="Search files..."><button id="refresh">↻ Refresh</button></div>
+<div id="uploads"></div><div id="status"></div><div id="grid"></div>
+</section>
+</main>
+<script src="./js/app.js"></script>
+</body>
+</html>
